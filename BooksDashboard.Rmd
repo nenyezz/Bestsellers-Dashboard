@@ -1,0 +1,198 @@
+---
+title: "Bestsellers Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(highcharter)
+library(gt)
+library(htmltools)
+library(viridis)
+library(readr)
+library(dplyr)
+```
+
+```{r}
+# import data
+df <- read_csv("bestsellers with categories.csv", show_col_types = FALSE)
+
+# remove duplicates
+df <- df %>%
+  distinct(Name, .keep_all = TRUE) %>%
+  rename(User_Rating = 'User Rating')
+```
+
+```{r}
+#importing second data
+data <- read.csv("charts.csv")
+
+data <- data %>%
+  rename(weeks_on_board = 'weeks.on.board',
+         peak_rank = 'peak.rank') %>%
+  select(-'last.week')
+
+#Removing duplicates and select max volume
+data1 <- data %>%
+  group_by(song, artist) %>%
+  summarise(weeks_on_board = max(weeks_on_board), .groups = 'drop')
+
+```
+
+
+Books 
+=================================================================================
+
+Column {.tabset .tabset-fade data-width=650}
+-----------------------------------------------------------------------
+
+### Most Popular Authors
+
+```{r}
+#Colors
+custom_colors <- viridis::plasma(n = 15)
+
+# Most popular author by reviews
+df%>%
+  group_by(Author) %>%
+  summarize(Reviews = sum(Reviews)) %>%
+  arrange(desc(Reviews)) %>%
+  head(15) %>%
+  hchart('column', hcaes(x = Author, y = Reviews, color = custom_colors)) %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_tooltip(pointFormat = '<b>Number of Reviews: </b> {point.y} <br>') %>%
+  hc_title(text = 'Most Popular Authors from 2009 to 2019',
+           style = list(fontSize = '25px',fontWeight = 'bold')) %>%
+  hc_subtitle(text = 'By Number of Reviews',
+              style = list(fontSize = '16px')) %>%
+  hc_credits(enabled = TRUE, text = '@estherreal')
+```
+
+### Most Popular Books
+
+```{r}
+# Most popular books by reviews
+df %>%
+  arrange(desc(Reviews)) %>%
+  head(15) %>%
+  hchart('bar', hcaes(x = Name, y = Reviews, color = custom_colors)) %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_tooltip(pointFormat = '<b>Number of Reviews: </b> {point.y} <br>') %>%
+  hc_title(text = 'Most PopularBooks from 2009 to 2019',
+           style = list(font_size = '25px', fontWeight = 'bold')) %>%
+  hc_subtitle(text = 'By Number of Reviews',
+              style = list(fontSize = '16px')) %>%
+  hc_credits(enabled = TRUE, text = '@estherreall')
+```
+
+
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### {.no-padding}
+
+```{r}
+# Colors 
+custom_colors <-viridis::mako(n = 2)
+
+# Most Common Genre
+df %>%
+  group_by(Genre) %>%
+  summarize(count = n()) %>%
+  hchart('pie', hcaes(x = Genre, y = count, color = custom_colors)) %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_tooltip((pointFormat='<b>Proportion: </b> {point.percentage:,.2f}%')) %>%
+  hc_title(text = 'Most Common Genre from 2009 to 2019',
+           style = list(fontSize = '15px', font_weight = 'bold')) %>%
+  hc_credits(enabled = TRUE, text = '@estherreall')
+```
+
+### {.no-padding}
+
+```{r}
+#This is going to be a data table
+df1 <- df %>%
+  filter('User Rating' >= 4.9) %>%
+  arrange(desc(Reviews)) %>%
+  select(Name, Author)
+
+#HTML Table
+div(style = 'height:600px; overflow-y:scroll', gt(df1) %>%
+  tab_header(title = md('Best Books from 2009 to 2019'),
+             subtitle = md('By Users Rating')) %>%
+  opt_table_font(font = list(google_font('Chivo'), default_fonts())) %>%
+  tab_style(locations = cells_column_labels(columns = everything()),
+            style = list(cell_borders(sides = 'bottom',
+                                      weight = px(2)),
+                         cell_text(weight = 'bold'))) %>%
+  tab_options(table.font.size = px(12L),
+              table.border.top.style = 'none',
+              column_labels.border.bottom.width = 'none',
+              data_row.padding = px(3))
+)
+```
+
+
+Songs
+==============================================================================
+
+Column {data-width=200}
+-----------------------------------------------------------------------
+
+### Most Popular Songs in Billboard
+
+```{r}
+#Colors
+custom_colors <- viridis::mako(n = 20)
+
+#Most Popular songs by week on board
+data1 %>%
+  arrange(desc(weeks_on_board)) %>%
+  head(20) %>%
+  hchart('lollipop', hcaes(x = song, y = weeks_on_board, color = custom_colors)) %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_tooltip(pointFormat = '<b>Number of Weeks on Board: </b> {poiny.y} <br>') %>%
+  hc_yAxis(title = list(text = 'Weeks on Board')) %>%
+  hc_xAxis(title = list(text = 'Songs')) %>%
+  hc_title(text = 'Most Popular Songs',
+           style = list(fontSize = '25px', fontWeight = 'bold')) %>%
+  hc_subtitle(text = 'By Number of Weeks on Board',
+              style = list(fontSize = '16px')) %>%
+  hc_credits(enabled = TRUE, text = '@estherreall')
+  
+```
+
+
+Column {data-width=200}
+-----------------------------------------------------------------------
+
+### Most Popular Artists in Billboard
+
+```{r}
+# Colors
+custom_colors <- viridis::turbo(n = 10)
+
+#Most Popular artists by week on board
+data1 %>%
+  group_by(artist) %>%
+  summarise(weeks_on_board = sum(weeks_on_board)) %>%
+  arrange(desc(weeks_on_board)) %>%
+  head(10) %>%
+  hchart('pie', hcaes(x = artist, y = weeks_on_board, color = custom_colors)) %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_tooltip(pointFormat = '<b>Number of Weeks on Board: </b> {point.y} <br>') %>%
+  hc_title(text = 'Most Popular Artists',
+           style = list(fontSize = '25px', fontWeight = 'bold')) %>%
+  hc_subtitle(text = 'By Number of Weeks on Board',
+              style = list(fontSize = '16px')) %>%
+  hc_credits(enabled = TRUE, text = '@estherreall')
+  
+```
+
